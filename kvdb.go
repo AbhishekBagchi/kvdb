@@ -19,6 +19,11 @@ func (db *Database) Name() string {
 	return db.name
 }
 
+// Set database name
+func (db *Database) SetName(name string) {
+	db.name = name
+}
+
 // Create and return a new database with a given name
 func New(name string) *Database {
 	return &Database{valid: true, name: name, data: make(map[string][]byte)}

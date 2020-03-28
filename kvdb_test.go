@@ -2,6 +2,14 @@ package kvdb
 
 import "testing"
 
+func TestSetName(t *testing.T) {
+	db := New("test_db")
+	db.SetName("new_name")
+	if db.Name() != "new_name" {
+		t.Error("Expected new_name, got ", db.Name())
+	}
+}
+
 func TestNew(t *testing.T) {
 	db := New("test_db")
 	if db.Name() != "test_db" {
