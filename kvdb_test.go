@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	db := New("test_db")
-	value := []byte{'k', 'v', 'd', 'b'}
+	value := []byte("kvdb")
 	err := db.Insert("key", value, false)
 	if err != nil {
 		t.Error("Insert on an empty db failed")
@@ -30,6 +30,10 @@ func TestInsert(t *testing.T) {
 		t.Error("Insert when key exists should return DatabaseKeyExists")
 	}
 	err = db.Insert("key", value, true)
+	if err != nil {
+		t.Error("Insert when overwrite is set should return nil")
+	}
+	err = db.Insert("key", []byte(""), true)
 	if err != nil {
 		t.Error("Insert when overwrite is set should return nil")
 	}
@@ -45,17 +49,22 @@ func TestGet(t *testing.T) {
 		t.Error("Get when key doesn't exists should return nil for value")
 	}
 
-	value := []byte{'k', 'v', 'd', 'b'}
-	err = db.Insert("key", value, false)
-	if err != nil {
-		t.Error("Insert on an empty db failed")
-	}
+	db.Insert("key", []byte("kvdb"), false)
+	db.Insert("key2", []byte("key2"), false)
+	db.Insert("key3", []byte(""), false)
 
-	val, err = db.Get("key")
+	_, err = db.Get("key")
 	if err != nil {
 		t.Error("Key inserted. err should be nil")
 	}
-	if bytes.Compare(val, value) != 0 {
-		t.Error("Get doesn't return the inserted value")
+
+	val, _ = db.Get("key2")
+	if bytes.Compare(val, []byte("key2")) != 0 {
+		t.Error("Expected key2, got ", val)
+	}
+
+	val, _ = db.Get("key3")
+	if bytes.Compare(val, []byte("")) != 0 {
+		t.Error("Expected empty byte array \"\", got ", val)
 	}
 }
