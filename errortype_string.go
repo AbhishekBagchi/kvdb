@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[DatabaseStateInvalid-1]
 	_ = x[DatabaseKeyExists-2]
+	_ = x[DatabaseKeyNotPresent-3]
 }
 
-const _ErrorType_name = "DatabaseStateInvalidDatabaseKeyExists"
+const _ErrorType_name = "DatabaseStateInvalidDatabaseKeyExistsDatabaseKeyNotPresent"
 
-var _ErrorType_index = [...]uint8{0, 20, 37}
+var _ErrorType_index = [...]uint8{0, 20, 37, 58}
 
 func (i ErrorType) String() string {
 	i -= 1

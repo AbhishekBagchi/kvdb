@@ -43,3 +43,17 @@ func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType 
 	db.data[key] = value
 	return nil
 }
+
+// Get a value for a key from the map. Return DatabaseKeyNotPresent if not in map
+func (db *Database) Get(key string) ([]byte, *ErrorType) {
+	if db.valid == false {
+		err := DatabaseStateInvalid
+		return nil, &err
+	}
+	value, ok := db.data[key]
+	if ok == false {
+		err := DatabaseKeyNotPresent
+		return nil, &err
+	}
+	return value, nil
+}
