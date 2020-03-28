@@ -8,12 +8,13 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[Database_State_Invalid-1]
+	_ = x[DatabaseStateInvalid-1]
+	_ = x[DatabaseKeyExists-2]
 }
 
-const _ErrorType_name = "Database_State_Invalid"
+const _ErrorType_name = "DatabaseStateInvalidDatabaseKeyExists"
 
-var _ErrorType_index = [...]uint8{0, 22}
+var _ErrorType_index = [...]uint8{0, 20, 37}
 
 func (i ErrorType) String() string {
 	i -= 1

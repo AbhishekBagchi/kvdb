@@ -3,5 +3,10 @@ package kvdb
 type ErrorType uint8
 
 const (
-	Database_State_Invalid ErrorType = iota + 1
+	DatabaseStateInvalid ErrorType = iota + 1
+	DatabaseKeyExists  ErrorType = iota + 1
 )
+
+func (err *ErrorType) Error() string {
+	return err.String()
+}

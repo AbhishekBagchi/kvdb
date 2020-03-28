@@ -23,3 +23,18 @@ func (db *Database) Name() string {
 func New(name string) *Database {
 	return &Database{valid: true, name: name, data: make(map[string][]byte)}
 }
+
+// Insert key value pair into the database. Overwrite existing value is parameter is true. No validation on the data is performed.
+func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType {
+	if db.valid == false {
+		err := DatabaseStateInvalid
+		return &err
+	}
+	_, ok := db.data[key]
+	if overwrite == false && ok == true {
+		err := DatabaseKeyExists
+		return &err
+	}
+	db.data[key] = value
+	return nil
+}
