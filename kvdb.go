@@ -9,9 +9,14 @@ package kvdb
  * Going with option 1 for now, exporting the structure but not the internals
  */
 type Database struct {
-	valid       bool
-	name        string            //Filename where this is read from/written to is <name>.kvdb
-	data        map[string][]byte //FIXME Do we want to read the entire file in memory when importing? Not feasable for large databases
+	valid bool
+	name  string            //Filename where this is read from/written to is <name>.kvdb
+	data  map[string][]byte //FIXME Do we want to read the entire file in memory when importing? Not feasable for large databases
+}
+
+// Get database name
+func (db *Database) Name() string {
+	return db.name
 }
 
 // Create and return a new database with a given name
