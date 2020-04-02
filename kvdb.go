@@ -1,5 +1,7 @@
 package kvdb
 
+import "math"
+
 //FIXME Almost certainly not threadsafe
 /* FIXME
  * I am not sure what the expected way of doing this is. I do not want users to directly work on the database structure.
@@ -7,6 +9,10 @@ package kvdb
  * The other option is to export an interface, and define an internal structure that impliments that interface, with those interface functions being exported instead.
  * This has the problem of adding an extra leyer of abstraction. Maybe the performance impact for this is low enough to not matter?
  * Going with option 1 for now, exporting the structure but not the internals
+ */
+/*
+ * Restrictions :
+ *		- The length of name should fit in 1 byte. So the maximum length is math.MaxUint8
  */
 type Database struct {
 	valid bool
@@ -20,12 +26,23 @@ func (db *Database) Name() string {
 }
 
 // Set database name
-func (db *Database) SetName(name string) {
+func (db *Database) SetName(name string) *ErrorType {
+	if len(name) > math.MaxUint8 {
+		err := DatabaseNameOutOfBounds
+		return &err
+	}
 	db.name = name
+	return nil
 }
 
-// Create and return a new database with a given name
+/*
+ * Create and return a new database with a given name
+ * Returns null if creation is not successful
+ */
 func New(name string) *Database {
+	if len(name) > math.MaxUint8 {
+		return nil
+	}
 	return &Database{valid: true, name: name, data: make(map[string][]byte)}
 }
 

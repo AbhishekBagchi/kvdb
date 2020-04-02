@@ -2,17 +2,31 @@ package kvdb
 
 import "testing"
 import "bytes"
+import "strconv"
 
 func TestSetName(t *testing.T) {
 	db := New("test_db")
-	db.SetName("new_name")
+	err := db.SetName("new_name")
 	if db.Name() != "new_name" {
 		t.Error("Expected new_name, got ", db.Name())
+	}
+	if err != nil {
+		t.Error("Name shorter than MaxUint8, should not be an error")
+	}
+	long_name := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
+	err = db.SetName(long_name)
+	if err == nil {
+		t.Error("Setting a name " + strconv.Itoa(len(long_name)) + " characters long. Should throw an error")
 	}
 }
 
 func TestNew(t *testing.T) {
-	db := New("test_db")
+	long_name := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
+	db := New(long_name)
+	if db != nil {
+		t.Error("Setting a name " + strconv.Itoa(len(long_name)) + " characters long. Should return nil")
+	}
+	db = New("test_db")
 	if db.Name() != "test_db" {
 		t.Error("Expected test_db, got ", db.Name())
 	}
