@@ -1,15 +1,12 @@
 package kvdb
 
-import "math"
+import (
+	"encoding/binary"
+	"math"
+	"os"
+)
 
 //FIXME Almost certainly not threadsafe
-/* FIXME
- * I am not sure what the expected way of doing this is. I do not want users to directly work on the database structure.
- * One option is to export the Database structure, but not expose any of the internal members (Does that even work? Need to check)
- * The other option is to export an interface, and define an internal structure that impliments that interface, with those interface functions being exported instead.
- * This has the problem of adding an extra leyer of abstraction. Maybe the performance impact for this is low enough to not matter?
- * Going with option 1 for now, exporting the structure but not the internals
- */
 /*
  * Restrictions :
  *		- The length of name should fit in 1 byte. So the maximum length is math.MaxUint8
@@ -73,4 +70,57 @@ func (db *Database) Get(key string) ([]byte, *ErrorType) {
 		return nil, &err
 	}
 	return value, nil
+}
+
+/* File format
+The byte order is fixed to little endian
+1 byte  -> Length of filename(n)
+n bytes -> filename
+For each record -
+	4 bytes - Length of key(k)
+	k bytes - Key
+	4 bytes - Length of value(v)
+	v bytes - Value
+*/
+
+//FIXME For the time being, this overrites exising files and dumps the entire data into the file
+//FIXME Better error handling
+//Export writes out the database to a file
+func (db *Database) Export(filename string) *ErrorType {
+	fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		panic(err)
+	}
+	defer fd.Close()
+
+	name_len := len(db.Name())
+	name_byte := make([]byte, 1)
+	name_byte[0] = byte(name_len)
+	_, err = fd.Write(name_byte)
+	if err != nil {
+		panic(err)
+	}
+	for key, value := range db.data {
+		key_len := make([]byte, 4)
+		binary.LittleEndian.PutUint32(key_len, uint32(len(key)))
+		_, err = fd.Write(key_len)
+		if err != nil {
+			panic(err)
+		}
+		_, err = fd.Write([]byte(key))
+		if err != nil {
+			panic(err)
+		}
+		value_len := make([]byte, 4)
+		binary.LittleEndian.PutUint32(value_len, uint32(len(value)))
+		_, err = fd.Write(value_len)
+		if err != nil {
+			panic(err)
+		}
+		_, err = fd.Write([]byte(value))
+		if err != nil {
+			panic(err)
+		}
+	}
+	return nil
 }
