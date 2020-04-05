@@ -142,8 +142,8 @@ func (db *Database) Export(filename string) error {
 func Open(filename string) (*Database, error) {
 	fd, err := os.OpenFile(filename, os.O_RDONLY, 0755)
 	if err != nil {
-		//Cannot open. Create new and return
-		return New(filename), nil
+		//Cannot open. Return nil and error
+		return nil, err
 	}
 	defer fd.Close()
 
