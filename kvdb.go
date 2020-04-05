@@ -2,6 +2,7 @@ package kvdb
 
 import (
 	"encoding/binary"
+	"io"
 	"math"
 	"os"
 )
@@ -123,4 +124,61 @@ func (db *Database) Export(filename string) *ErrorType {
 		}
 	}
 	return nil
+}
+
+//FIXME I hate how this is written
+//FIXME For now, create a new database with the filename as the db name
+//Open reads in a database from disk, and creates a new one if it can't find one with the supplied filename
+func Open(filename string) (*Database, *ErrorType) {
+	fd, err := os.OpenFile(filename, os.O_RDONLY, 0755)
+	if err != nil {
+		//Cannot open. Create new and return
+		return New(filename), nil
+	}
+	defer fd.Close()
+
+	name_len := make([]byte, 1)
+	length, err := fd.Read(name_len)
+	if length != 1 || err != nil {
+		panic(err)
+	}
+	name := make([]byte, uint8(name_len[0]))
+	length, err = fd.Read(name)
+	if length != int(name_len[0]) || err != nil {
+		panic(err)
+	}
+	db := New(string(name))
+
+	length = 0
+	err = nil
+	for {
+		key_len_bytes := make([]byte, 4)
+		length, err = fd.Read(key_len_bytes)
+		if length == 0 && err == io.EOF {
+			//EOF
+			return db, nil
+		}
+		if length != 4 || err != nil {
+			break
+		}
+		key_len := binary.LittleEndian.Uint32(key_len_bytes)
+		key := make([]byte, key_len)
+		length, err = fd.Read(key)
+		if uint32(length) != key_len || err != nil {
+			break
+		}
+		value_len_bytes := make([]byte, 4)
+		length, err = fd.Read(value_len_bytes)
+		if length != 4 || err != nil {
+			break
+		}
+		value_len := binary.LittleEndian.Uint32(value_len_bytes)
+		value := make([]byte, value_len)
+		length, err = fd.Read(value)
+		if uint32(length) != value_len || err != nil {
+			break
+		}
+		db.Insert(string(key), value, false)
+	}
+	return nil, nil
 }
