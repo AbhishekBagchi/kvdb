@@ -1,8 +1,35 @@
 package kvdb
 
-import "testing"
-import "bytes"
-import "strconv"
+import (
+	"bytes"
+	"math/rand"
+	"os"
+	"reflect"
+	"strconv"
+	"testing"
+	"time"
+)
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func generateRandomBytes(length int) []byte {
+	var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return b
+}
+
+func getDummyDb(name string) *Database {
+	db := New(name)
+	for i := 0; i < 350; i++ {
+		key := string(generateRandomBytes(50))
+		value := generateRandomBytes(100)
+		db.Insert(key, value, false)
+	}
+	return db
+}
 
 func TestSetName(t *testing.T) {
 	db := New("test_db")
@@ -39,8 +66,10 @@ func TestInsert(t *testing.T) {
 	if err != nil {
 		t.Error("Insert on an empty db failed")
 	}
+	db = getDummyDb("test_db")
 	err = db.Insert("key", value, false)
-	if *err != DatabaseKeyExists {
+	err = db.Insert("key", value, false)
+	if err != nil && *err != DatabaseKeyExists {
 		t.Error("Insert when key exists should return DatabaseKeyExists")
 	}
 	err = db.Insert("key", value, true)
@@ -54,7 +83,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	db := New("test_db")
+	db := getDummyDb("test_db")
 	val, err := db.Get("key")
 	if *err != DatabaseKeyNotPresent {
 		t.Error("Get when key doesn't exists should return DatabaseKeyNotPresent as error")
@@ -80,5 +109,34 @@ func TestGet(t *testing.T) {
 	val, _ = db.Get("key3")
 	if bytes.Compare(val, []byte("")) != 0 {
 		t.Error("Expected empty byte array \"\", got ", val)
+	}
+}
+
+func TestSerialization(t *testing.T) {
+	db := getDummyDb("test_db")
+	db.Insert("key", []byte("kvdb"), false)
+	db.Insert("key2", []byte("key2"), false)
+	db.Insert("key3", []byte(""), false)
+	var filename string = "test.kvdb"
+	err := db.Export(filename)
+	if err != nil {
+		t.Error("Error in exporting database")
+	}
+	new_db, err := Open(filename)
+	if err != nil {
+		t.Error("Returned err on opening")
+		t.Log(err)
+	}
+	if new_db == nil {
+		t.Error("Returned nil on opening")
+	}
+	eq := reflect.DeepEqual(db.data, new_db.data)
+	if eq == false {
+		t.Error("Data does not match")
+	}
+	//Cleanup
+	err = os.Remove(filename)
+	if err != nil {
+		t.Error("Error on cleaning up files " + err.Error())
 	}
 }
