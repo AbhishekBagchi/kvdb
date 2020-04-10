@@ -3,6 +3,7 @@ package kvdb
 import (
 	"errors"
 	"hash/fnv"
+	"sync"
 )
 
 var shards uint32 = 20
@@ -18,6 +19,7 @@ The SMHasher tool talks about other faster hashing implimentations, but they'll 
 //FIXME is a struct because it'll eventually contain a RW mutex(?)
 // mapShard is the basic block representing a shard of the overall map
 type mapShard struct {
+	sync.RWMutex
 	data map[string][]byte
 }
 
@@ -40,16 +42,24 @@ func getShardId(key string) uint32 {
 
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
 	shard := getShardId(key)
-	_, ok := (*m)[shard].data[key]
+	shardedMap := (*m)[shard]
+	shardedMap.RLock()
+	_, ok := shardedMap.data[key]
+	shardedMap.RUnlock()
 	if overwrite == false && ok == true {
 		return errors.New("Key exists. overwrite set to false")
 	}
-	(*m)[shard].data[key] = value
+	shardedMap.Lock()
+	defer shardedMap.Unlock()
+	shardedMap.data[key] = value
 	return nil
 }
 
 func getFromShardedMap(m shardedMap, key string) ([]byte, error) {
 	shard := getShardId(key)
+	shardedMap := (*m)[shard]
+	shardedMap.RLock()
+	defer shardedMap.RUnlock()
 	value, ok := (*m)[shard].data[key]
 	if ok == false {
 		return nil, errors.New("Key not found in database")

@@ -204,5 +204,4 @@ func Open(filename string) (*Database, error) {
 		}
 		db.Insert(string(key), value, false)
 	}
-	return nil, nil
 }
