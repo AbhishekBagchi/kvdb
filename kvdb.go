@@ -16,8 +16,8 @@ import (
  */
 type Database struct {
 	valid bool
-	name  string            //Filename where this is read from/written to is <name>.kvdb
-	data  map[string][]byte //FIXME Do we want to read the entire file in memory when importing? Not feasable for large databases
+	name  string
+	data  shardedMap //Will eventually replace the map
 }
 
 // Get database name
@@ -43,7 +43,7 @@ func New(name string) *Database {
 	if len(name) > math.MaxUint8 {
 		return nil
 	}
-	return &Database{valid: true, name: name, data: make(map[string][]byte)}
+	return &Database{valid: true, name: name, data: newShardMap()}
 }
 
 // Insert key value pair into the database. Overwrite existing value is parameter is true. No validation on the data is performed.
@@ -52,12 +52,11 @@ func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType 
 		err := DatabaseStateInvalid
 		return &err
 	}
-	_, ok := db.data[key]
-	if overwrite == false && ok == true {
+	err := insertIntoShardedMap(db.data, key, value, overwrite)
+	if err != nil {
 		err := DatabaseKeyExists
 		return &err
 	}
-	db.data[key] = value
 	return nil
 }
 
@@ -67,8 +66,8 @@ func (db *Database) Get(key string) ([]byte, *ErrorType) {
 		err := DatabaseStateInvalid
 		return nil, &err
 	}
-	value, ok := db.data[key]
-	if ok == false {
+	value, err := getFromShardedMap(db.data, key)
+	if err != nil {
 		err := DatabaseKeyNotPresent
 		return nil, &err
 	}
@@ -86,7 +85,7 @@ For each record -
 	v bytes - Value
 */
 
-//FIXME For the time being, this overrites exising files and dumps the entire data into the file
+//FIXME For the time being, this overwrites exising files and dumps the entire data into the file
 //FIXME Better error handling
 //Export writes out the database to a file
 func (db *Database) Export(filename string) error {
@@ -111,26 +110,29 @@ func (db *Database) Export(filename string) error {
 	if length != name_len {
 		return errors.New("Wrote " + strconv.Itoa(length) + " bytes, expected to write " + strconv.Itoa(name_len) + " bytes")
 	}
-	for key, value := range db.data {
-		key_len := make([]byte, 4)
-		binary.LittleEndian.PutUint32(key_len, uint32(len(key)))
-		_, err = fd.Write(key_len)
-		if err != nil {
-			return err
-		}
-		_, err = fd.Write([]byte(key))
-		if err != nil {
-			return err
-		}
-		value_len := make([]byte, 4)
-		binary.LittleEndian.PutUint32(value_len, uint32(len(value)))
-		_, err = fd.Write(value_len)
-		if err != nil {
-			return err
-		}
-		_, err = fd.Write([]byte(value))
-		if err != nil {
-			return err
+	var i uint32 = 0
+	for ; i < shards; i++ {
+		for key, value := range (*db.data)[i].data {
+			key_len := make([]byte, 4)
+			binary.LittleEndian.PutUint32(key_len, uint32(len(key)))
+			_, err = fd.Write(key_len)
+			if err != nil {
+				return err
+			}
+			_, err = fd.Write([]byte(key))
+			if err != nil {
+				return err
+			}
+			value_len := make([]byte, 4)
+			binary.LittleEndian.PutUint32(value_len, uint32(len(value)))
+			_, err = fd.Write(value_len)
+			if err != nil {
+				return err
+			}
+			_, err = fd.Write([]byte(value))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
