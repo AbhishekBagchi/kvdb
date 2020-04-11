@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+// Database encapsulates the underlying datastore, and other related metadata.
 //FIXME Almost certainly not threadsafe
 /*
  * Restrictions :
@@ -20,12 +21,12 @@ type Database struct {
 	data  shardedMap
 }
 
-// Get database name
+// Name is the getter for the database name
 func (db *Database) Name() string {
 	return db.name
 }
 
-// Set database name
+// SetName is the setter for the database name
 func (db *Database) SetName(name string) *ErrorType {
 	if len(name) > math.MaxUint8 {
 		err := DatabaseNameOutOfBounds
@@ -35,10 +36,7 @@ func (db *Database) SetName(name string) *ErrorType {
 	return nil
 }
 
-/*
- * Create and return a new database with a given name
- * Returns null if creation is not successful
- */
+//New creates and return a database with a given name. Returns nil if creation is not successful
 func New(name string) *Database {
 	if len(name) > math.MaxUint8 {
 		return nil
@@ -85,9 +83,9 @@ For each record -
 	v bytes - Value
 */
 
+//Export writes out the database to a file
 //FIXME For the time being, this overwrites exising files and dumps the entire data into the file
 //FIXME Better error handling
-//Export writes out the database to a file
 func (db *Database) Export(filename string) error {
 	fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
 	if err != nil {
@@ -95,10 +93,10 @@ func (db *Database) Export(filename string) error {
 	}
 	defer fd.Close()
 
-	name_len := len(db.Name())
-	name_byte := make([]byte, 1)
-	name_byte[0] = byte(name_len)
-	_, err = fd.Write(name_byte)
+	nameLen := len(db.Name())
+	nameByte := make([]byte, 1)
+	nameByte[0] = byte(nameLen)
+	_, err = fd.Write(nameByte)
 	if err != nil {
 		return err
 	}
@@ -107,15 +105,16 @@ func (db *Database) Export(filename string) error {
 	if err != nil {
 		return err
 	}
-	if length != name_len {
-		return errors.New("Wrote " + strconv.Itoa(length) + " bytes, expected to write " + strconv.Itoa(name_len) + " bytes")
+	if length != nameLen {
+		return errors.New("Wrote " + strconv.Itoa(length) + " bytes, expected to write " + strconv.Itoa(nameLen) + " bytes")
 	}
 	var i uint32 = 0
+	keyLen := make([]byte, 4)
+	valueLen := make([]byte, 4)
 	for ; i < shards; i++ {
 		for key, value := range (*db.data)[i].data {
-			key_len := make([]byte, 4)
-			binary.LittleEndian.PutUint32(key_len, uint32(len(key)))
-			_, err = fd.Write(key_len)
+			binary.LittleEndian.PutUint32(keyLen, uint32(len(key)))
+			_, err = fd.Write(keyLen)
 			if err != nil {
 				return err
 			}
@@ -123,9 +122,8 @@ func (db *Database) Export(filename string) error {
 			if err != nil {
 				return err
 			}
-			value_len := make([]byte, 4)
-			binary.LittleEndian.PutUint32(value_len, uint32(len(value)))
-			_, err = fd.Write(value_len)
+			binary.LittleEndian.PutUint32(valueLen, uint32(len(value)))
+			_, err = fd.Write(valueLen)
 			if err != nil {
 				return err
 			}
@@ -138,8 +136,8 @@ func (db *Database) Export(filename string) error {
 	return nil
 }
 
-//FIXME I hate how this is written
 //Open reads in a database from disk, and creates a new one in memory and on disk if it can't find one with the supplied filename
+//FIXME I hate how this is written
 func Open(filename string, create bool) (*Database, error) {
 	fd, err := os.OpenFile(filename, os.O_RDONLY, 0755)
 	if err != nil {
@@ -153,23 +151,24 @@ func Open(filename string, create bool) (*Database, error) {
 	}
 	defer fd.Close()
 
-	name_len := make([]byte, 1)
-	length, err := fd.Read(name_len)
+	nameLen := make([]byte, 1)
+	length, err := fd.Read(nameLen)
 	if length != 1 || err != nil {
 		return nil, err
 	}
-	name := make([]byte, uint8(name_len[0]))
+	name := make([]byte, uint8(nameLen[0]))
 	length, err = fd.Read(name)
-	if length != int(name_len[0]) || err != nil {
+	if length != int(nameLen[0]) || err != nil {
 		return nil, err
 	}
 	db := New(string(name))
 
 	length = 0
 	err = nil
+	keyLenBytes := make([]byte, 4)
+	valueLenBytes := make([]byte, 4)
 	for {
-		key_len_bytes := make([]byte, 4)
-		length, err = fd.Read(key_len_bytes)
+		length, err = fd.Read(keyLenBytes)
 		if length == 0 && err == io.EOF {
 			//EOF
 			return db, nil
@@ -180,28 +179,27 @@ func Open(filename string, create bool) (*Database, error) {
 		if err != nil {
 			return nil, errors.New(db.Name() + "Failed to read key length : " + err.Error())
 		}
-		key_len := binary.LittleEndian.Uint32(key_len_bytes)
-		key := make([]byte, key_len)
+		keyLen := binary.LittleEndian.Uint32(keyLenBytes)
+		key := make([]byte, keyLen)
 		length, err = fd.Read(key)
-		if uint32(length) != key_len {
-			return nil, errors.New(db.Name() + "Failed to read key" + strconv.Itoa(length) + " wanted to read " + strconv.Itoa(int(key_len)) + "bytes")
+		if uint32(length) != keyLen {
+			return nil, errors.New(db.Name() + "Failed to read key" + strconv.Itoa(length) + " wanted to read " + strconv.Itoa(int(keyLen)) + "bytes")
 		}
 		if err != nil {
 			return nil, errors.New(db.Name() + "Failed to read key: " + err.Error())
 		}
-		value_len_bytes := make([]byte, 4)
-		length, err = fd.Read(value_len_bytes)
+		length, err = fd.Read(valueLenBytes)
 		if uint32(length) != 4 {
 			return nil, errors.New(db.Name() + "Failed to read value length" + strconv.Itoa(length))
 		}
 		if err != nil {
 			return nil, errors.New(db.Name() + "Failed to read value length: " + err.Error())
 		}
-		value_len := binary.LittleEndian.Uint32(value_len_bytes)
-		value := make([]byte, value_len)
+		valueLen := binary.LittleEndian.Uint32(valueLenBytes)
+		value := make([]byte, valueLen)
 		length, err = fd.Read(value)
-		if uint32(length) != value_len {
-			return nil, errors.New(db.Name() + "Failed to read value" + strconv.Itoa(length) + "for key " + string(key) + " wanted to read " + strconv.Itoa(int(key_len)) + "bytes")
+		if uint32(length) != valueLen {
+			return nil, errors.New(db.Name() + "Failed to read value" + strconv.Itoa(length) + "for key " + string(key) + " wanted to read " + strconv.Itoa(int(keyLen)) + "bytes")
 		}
 		if err != nil {
 			return nil, errors.New(db.Name() + "Failed to read value: " + "for key " + string(key) + err.Error())

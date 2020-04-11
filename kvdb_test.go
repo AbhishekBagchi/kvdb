@@ -41,19 +41,19 @@ func TestSetName(t *testing.T) {
 	if err != nil {
 		t.Error("Name shorter than MaxUint8, should not be an error")
 	}
-	long_name := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
-	err = db.SetName(long_name)
+	longName := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
+	err = db.SetName(longName)
 	if err == nil {
-		t.Error("Setting a name " + strconv.Itoa(len(long_name)) + " characters long. Should throw an error")
+		t.Error("Setting a name " + strconv.Itoa(len(longName)) + " characters long. Should throw an error")
 	}
 }
 
 func TestNew(t *testing.T) {
 	t.Parallel()
-	long_name := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
-	db := New(long_name)
+	longName := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
+	db := New(longName)
 	if db != nil {
-		t.Error("Setting a name " + strconv.Itoa(len(long_name)) + " characters long. Should return nil")
+		t.Error("Setting a name " + strconv.Itoa(len(longName)) + " characters long. Should return nil")
 	}
 	db = New("test_db")
 	if db.Name() != "test_db" {
@@ -142,15 +142,15 @@ func TestSerialization(t *testing.T) {
 	if err != nil {
 		t.Error("Error in exporting database")
 	}
-	new_db, err := Open(filename, false)
+	newDB, err := Open(filename, false)
 	if err != nil {
 		t.Error("Returned err on opening")
 		t.Log(err)
 	}
-	if new_db == nil {
+	if newDB == nil {
 		t.Error("Returned nil on opening")
 	}
-	eq := reflect.DeepEqual(db.data, new_db.data)
+	eq := reflect.DeepEqual(db.data, newDB.data)
 	if eq == false {
 		t.Error("Data does not match")
 	}

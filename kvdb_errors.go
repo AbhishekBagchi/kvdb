@@ -1,7 +1,9 @@
 package kvdb
 
+//ErrorType defines custom error types
 type ErrorType uint8
 
+//Custom ErrorTypes
 const (
 	DatabaseNameOutOfBounds ErrorType = iota + 1
 	DatabaseStateInvalid    ErrorType = iota + 1

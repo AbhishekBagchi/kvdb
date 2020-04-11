@@ -34,14 +34,14 @@ func newShardMap() shardedMap {
 	return &m
 }
 
-func getShardId(key string) uint32 {
+func getShardID(key string) uint32 {
 	hash := fnv.New32a()
 	hash.Write([]byte(key))
 	return (hash.Sum32() % shards)
 }
 
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
-	shard := getShardId(key)
+	shard := getShardID(key)
 	shardedMap := (*m)[shard]
 	shardedMap.RLock()
 	_, ok := shardedMap.data[key]
@@ -56,7 +56,7 @@ func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool
 }
 
 func getFromShardedMap(m shardedMap, key string) ([]byte, error) {
-	shard := getShardId(key)
+	shard := getShardID(key)
 	shardedMap := (*m)[shard]
 	shardedMap.RLock()
 	defer shardedMap.RUnlock()
