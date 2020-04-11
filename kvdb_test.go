@@ -32,6 +32,7 @@ func getDummyDb(name string) *Database {
 }
 
 func TestSetName(t *testing.T) {
+	t.Parallel()
 	db := New("test_db")
 	err := db.SetName("new_name")
 	if db.Name() != "new_name" {
@@ -48,6 +49,7 @@ func TestSetName(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	long_name := "Kq6NtYrFJQNj1U61PIP2G4OYnTAY0CM1jBfcDTEJEQOPgrNiuHhusJnVUwEriwfhMkR6bJOIKXWa3cYZWIF6g7wDW5CjNB6vHYWVwYF7V8XAtygFNIfzYnhYnZQ3xuQ3BDHwYqDAw5YlscGPMLLMcLrzFTtYvq8YTvHzNwNk12JnZdF80n0skKIHOqogAg5sgrBXeLuRHCZmmXIIJmTabotjPPLLRy3gjasdtHTUeSJoAByjUgLHLpKTP77wfJ7a"
 	db := New(long_name)
 	if db != nil {
@@ -60,6 +62,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
+	t.Parallel()
 	db := New("test_db")
 	value := []byte("kvdb")
 	err := db.Insert("key", value, false)
@@ -83,6 +86,7 @@ func TestInsert(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
+	t.Parallel()
 	db := getDummyDb("test_db")
 	val, err := db.Get("key")
 	if *err != DatabaseKeyNotPresent {

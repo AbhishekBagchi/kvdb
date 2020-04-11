@@ -17,7 +17,7 @@ import (
 type Database struct {
 	valid bool
 	name  string
-	data  shardedMap //Will eventually replace the map
+	data  shardedMap
 }
 
 // Get database name
