@@ -116,6 +116,22 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestOpen(t *testing.T) {
+	var filename string = "open_test.kvdb"
+	db, err := Open(filename, true)
+	if err != nil {
+		t.Error("Error in opening database")
+	}
+	if db.Name() != filename {
+		t.Error("Name set to the wrong value")
+	}
+	//Cleanup
+	err = os.Remove(filename)
+	if err != nil {
+		t.Error("Error on cleaning up files " + err.Error())
+	}
+}
+
 func TestSerialization(t *testing.T) {
 	db := getDummyDb("test_db")
 	db.Insert("key", []byte("kvdb"), false)
@@ -126,7 +142,7 @@ func TestSerialization(t *testing.T) {
 	if err != nil {
 		t.Error("Error in exporting database")
 	}
-	new_db, err := Open(filename)
+	new_db, err := Open(filename, false)
 	if err != nil {
 		t.Error("Returned err on opening")
 		t.Log(err)

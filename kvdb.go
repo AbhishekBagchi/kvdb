@@ -139,12 +139,16 @@ func (db *Database) Export(filename string) error {
 }
 
 //FIXME I hate how this is written
-//FIXME For now, create a new database with the filename as the db name
-//Open reads in a database from disk, and creates a new one if it can't find one with the supplied filename
-func Open(filename string) (*Database, error) {
+//Open reads in a database from disk, and creates a new one in memory and on disk if it can't find one with the supplied filename
+func Open(filename string, create bool) (*Database, error) {
 	fd, err := os.OpenFile(filename, os.O_RDONLY, 0755)
 	if err != nil {
-		//Cannot open. Return nil and error
+		if os.IsNotExist(err) {
+			//Doesn't exist. Create a new one and return
+			db := New(filename)
+			db.Export(filename)
+			return db, nil
+		}
 		return nil, err
 	}
 	defer fd.Close()
