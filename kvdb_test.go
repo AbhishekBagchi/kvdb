@@ -21,9 +21,9 @@ func generateRandomBytes(length int) []byte {
 	return b
 }
 
-func getDummyDb(name string) *Database {
+func getDummyDb(name string, size int) *Database {
 	db := New(name)
-	for i := 0; i < 350; i++ {
+	for i := 0; i < size; i++ {
 		key := string(generateRandomBytes(50))
 		value := generateRandomBytes(100)
 		db.Insert(key, value, false)
@@ -69,7 +69,7 @@ func TestInsert(t *testing.T) {
 	if err != nil {
 		t.Error("Insert on an empty db failed")
 	}
-	db = getDummyDb("test_db")
+	db = getDummyDb("test_db", 500)
 	err = db.Insert("key", value, false)
 	err = db.Insert("key", value, false)
 	if err != nil && *err != DatabaseKeyExists {
@@ -87,7 +87,7 @@ func TestInsert(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	t.Parallel()
-	db := getDummyDb("test_db")
+	db := getDummyDb("test_db", 500)
 	val, err := db.Get("key")
 	if *err != DatabaseKeyNotPresent {
 		t.Error("Get when key doesn't exists should return DatabaseKeyNotPresent as error")
@@ -118,6 +118,15 @@ func TestGet(t *testing.T) {
 
 func TestOpen(t *testing.T) {
 	var filename string = "open_test.kvdb"
+
+	defer func() {
+		//Cleanup
+		err := os.Remove(filename)
+		if err != nil {
+			t.Error("Error on cleaning up files " + err.Error())
+		}
+	}()
+
 	db, err := Open(filename, true)
 	if err != nil {
 		t.Error("Error in opening database")
@@ -125,38 +134,81 @@ func TestOpen(t *testing.T) {
 	if db.Name() != filename {
 		t.Error("Name set to the wrong value")
 	}
-	//Cleanup
-	err = os.Remove(filename)
-	if err != nil {
-		t.Error("Error on cleaning up files " + err.Error())
-	}
 }
 
 func TestSerialization(t *testing.T) {
-	db := getDummyDb("test_db")
+	db := getDummyDb("test_db", 500)
 	db.Insert("key", []byte("kvdb"), false)
 	db.Insert("key2", []byte("key2"), false)
 	db.Insert("key3", []byte(""), false)
 	var filename string = "test.kvdb"
+
+	defer func() {
+		//Cleanup
+		err := os.Remove(filename)
+		if err != nil {
+			t.Error("Error on cleaning up files " + err.Error())
+			t.FailNow()
+		}
+	}()
+
 	err := db.Export(filename)
 	if err != nil {
 		t.Error("Error in exporting database")
+		t.FailNow()
 	}
 	newDB, err := Open(filename, false)
 	if err != nil {
 		t.Error("Returned err on opening")
 		t.Log(err)
+		t.FailNow()
 	}
 	if newDB == nil {
 		t.Error("Returned nil on opening")
+		t.FailNow()
 	}
 	eq := reflect.DeepEqual(db.data, newDB.data)
 	if eq == false {
 		t.Error("Data does not match")
+		t.FailNow()
 	}
-	//Cleanup
-	err = os.Remove(filename)
+}
+
+func BenchmarkSerialization(b *testing.B) {
+	db := getDummyDb("test_db", 1000)
+	db.Insert("key", []byte("kvdb"), false)
+	db.Insert("key2", []byte("key2"), false)
+	db.Insert("key3", []byte(""), false)
+	b.ResetTimer()
+	var filename string = "benchmark.kvdb"
+
+	defer func() {
+		//Cleanup
+		err := os.Remove(filename)
+		if err != nil {
+			b.Error("Error on cleaning up files " + err.Error())
+			b.FailNow()
+		}
+	}()
+
+	err := db.Export(filename)
 	if err != nil {
-		t.Error("Error on cleaning up files " + err.Error())
+		b.Error("Error in exporting database")
+		b.FailNow()
+	}
+	newDB, err := Open(filename, false)
+	if err != nil {
+		b.Error("Returned err on opening")
+		b.Log(err)
+		b.FailNow()
+	}
+	if newDB == nil {
+		b.Error("Returned nil on opening")
+		b.FailNow()
+	}
+	eq := reflect.DeepEqual(db.data, newDB.data)
+	if eq == false {
+		b.Error("Data does not match")
+		b.FailNow()
 	}
 }
