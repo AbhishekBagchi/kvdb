@@ -1,11 +1,14 @@
 package kvdb
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -83,42 +86,56 @@ For each record -
 	v bytes - Value
 */
 
-func writeChunk(chunk []byte, fd *os.File) error {
+func writeChunk(chunk []byte, bufw *bufio.Writer) error {
 	lenByteArr := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lenByteArr, uint32(len(chunk)))
-	_, err := fd.Write(lenByteArr)
+	_, err := bufw.Write(lenByteArr)
 	if err != nil {
 		return err
 	}
-	_, err = fd.Write([]byte(chunk))
+	_, err = bufw.Write([]byte(chunk))
 	return nil
+}
+
+func tempDir(dest string) string {
+	tempdir := os.Getenv("TMPDIR")
+	if tempdir == "" {
+		//Ensures the tmp file is on the same device as the final file so as to not fail on rename
+		tempdir = filepath.Dir(dest)
+	}
+	return tempdir
 }
 
 //Export writes out the database to a file
 //FIXME For the time being, this overwrites exising files and dumps the entire data into the file
 func (db *Database) Export(filename string) (err error) {
-	fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+	//fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+	fd, err := ioutil.TempFile(tempDir(filename), "tmp-")
 	if err != nil {
 		return
 	}
 
 	//Defer file Close() while still checking for errors from the close call
 	defer func() {
-		closeErr := fd.Close()
-		if err == nil {
-			err = closeErr
+		// If returning with an error, cleanup the tmpfile
+		if err != nil {
+			fd.Close()
+			os.Remove(fd.Name())
 		}
 	}()
+
+	//User buffered writers
+	bufw := bufio.NewWriter(fd)
 
 	nameLen := len(db.Name())
 	nameByte := make([]byte, 1)
 	nameByte[0] = byte(nameLen)
-	_, err = fd.Write(nameByte)
+	_, err = bufw.Write(nameByte)
 	if err != nil {
 		return err
 	}
 	name := []byte(db.Name())
-	length, err := fd.Write(name)
+	length, err := bufw.Write(name)
 	if err != nil {
 		return err
 	}
@@ -128,14 +145,32 @@ func (db *Database) Export(filename string) (err error) {
 	var i uint32 = 0
 	for ; i < shards; i++ {
 		for key, value := range (*db.data)[i].data {
-			err = writeChunk([]byte(key), fd)
-			err = writeChunk([]byte(value), fd)
+			err = writeChunk([]byte(key), bufw)
+			err = writeChunk([]byte(value), bufw)
 			if err != nil {
 				return
 			}
 		}
 	}
-	return
+
+	//Flush the buffered writer
+	err = bufw.Flush()
+	if err != nil {
+		return
+	}
+
+	//Set correct permissions before renaming. TempFile creates a file with 0600
+	err = fd.Chmod(0644)
+	if err != nil {
+		return
+	}
+	fd.Sync()
+	err = fd.Close()
+	if err != nil {
+		return
+	}
+
+	return os.Rename(fd.Name(), filename)
 }
 
 func readChunk(fd *os.File) ([]byte, error) {
