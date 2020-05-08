@@ -83,15 +83,32 @@ For each record -
 	v bytes - Value
 */
 
-//Export writes out the database to a file
-//FIXME For the time being, this overwrites exising files and dumps the entire data into the file
-//FIXME Better error handling
-func (db *Database) Export(filename string) error {
-	fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+func writeChunk(chunk []byte, fd *os.File) error {
+	lenByteArr := make([]byte, 4)
+	binary.LittleEndian.PutUint32(lenByteArr, uint32(len(chunk)))
+	_, err := fd.Write(lenByteArr)
 	if err != nil {
 		return err
 	}
-	defer fd.Close()
+	_, err = fd.Write([]byte(chunk))
+	return nil
+}
+
+//Export writes out the database to a file
+//FIXME For the time being, this overwrites exising files and dumps the entire data into the file
+func (db *Database) Export(filename string) (err error) {
+	fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		return
+	}
+
+	//Defer file Close() while still checking for errors from the close call
+	defer func() {
+		closeErr := fd.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
 	nameLen := len(db.Name())
 	nameByte := make([]byte, 1)
@@ -109,35 +126,44 @@ func (db *Database) Export(filename string) error {
 		return errors.New("Wrote " + strconv.Itoa(length) + " bytes, expected to write " + strconv.Itoa(nameLen) + " bytes")
 	}
 	var i uint32 = 0
-	keyLen := make([]byte, 4)
-	valueLen := make([]byte, 4)
 	for ; i < shards; i++ {
 		for key, value := range (*db.data)[i].data {
-			binary.LittleEndian.PutUint32(keyLen, uint32(len(key)))
-			_, err = fd.Write(keyLen)
+			err = writeChunk([]byte(key), fd)
+			err = writeChunk([]byte(value), fd)
 			if err != nil {
-				return err
-			}
-			_, err = fd.Write([]byte(key))
-			if err != nil {
-				return err
-			}
-			binary.LittleEndian.PutUint32(valueLen, uint32(len(value)))
-			_, err = fd.Write(valueLen)
-			if err != nil {
-				return err
-			}
-			_, err = fd.Write([]byte(value))
-			if err != nil {
-				return err
+				return
 			}
 		}
 	}
-	return nil
+	return
+}
+
+func readChunk(fd *os.File) ([]byte, error) {
+	lenBytes := make([]byte, 4)
+	length, err := fd.Read(lenBytes)
+	if length == 0 && err == io.EOF {
+		//EOF
+		return nil, err
+	}
+	if uint32(length) != 4 {
+		return nil, errors.New("Failed to read chunk length " + strconv.Itoa(length))
+	}
+	if err != nil {
+		return nil, errors.New("Failed to read chunk length : " + err.Error())
+	}
+	chunkLen := binary.LittleEndian.Uint32(lenBytes)
+	chunk := make([]byte, chunkLen)
+	length, err = fd.Read(chunk)
+	if uint32(length) != chunkLen {
+		return nil, errors.New("Failed to read chunk" + strconv.Itoa(length) + " wanted to read " + strconv.Itoa(int(chunkLen)) + "bytes")
+	}
+	if err != nil {
+		return nil, errors.New("Failed to read chunk: " + err.Error())
+	}
+	return chunk, nil
 }
 
 //Open reads in a database from disk, and creates a new one in memory and on disk if it can't find one with the supplied filename
-//FIXME I hate how this is written
 func Open(filename string, create bool) (*Database, error) {
 	fd, err := os.OpenFile(filename, os.O_RDONLY, 0755)
 	if err != nil {
@@ -165,44 +191,15 @@ func Open(filename string, create bool) (*Database, error) {
 
 	length = 0
 	err = nil
-	keyLenBytes := make([]byte, 4)
-	valueLenBytes := make([]byte, 4)
 	for {
-		length, err = fd.Read(keyLenBytes)
-		if length == 0 && err == io.EOF {
+		key, err := readChunk(fd)
+		if key == nil && err == io.EOF {
 			//EOF
 			return db, nil
 		}
-		if uint32(length) != 4 {
-			return nil, errors.New(db.Name() + "Failed to read key length " + strconv.Itoa(length))
-		}
+		value, err := readChunk(fd)
 		if err != nil {
-			return nil, errors.New(db.Name() + "Failed to read key length : " + err.Error())
-		}
-		keyLen := binary.LittleEndian.Uint32(keyLenBytes)
-		key := make([]byte, keyLen)
-		length, err = fd.Read(key)
-		if uint32(length) != keyLen {
-			return nil, errors.New(db.Name() + "Failed to read key" + strconv.Itoa(length) + " wanted to read " + strconv.Itoa(int(keyLen)) + "bytes")
-		}
-		if err != nil {
-			return nil, errors.New(db.Name() + "Failed to read key: " + err.Error())
-		}
-		length, err = fd.Read(valueLenBytes)
-		if uint32(length) != 4 {
-			return nil, errors.New(db.Name() + "Failed to read value length" + strconv.Itoa(length))
-		}
-		if err != nil {
-			return nil, errors.New(db.Name() + "Failed to read value length: " + err.Error())
-		}
-		valueLen := binary.LittleEndian.Uint32(valueLenBytes)
-		value := make([]byte, valueLen)
-		length, err = fd.Read(value)
-		if uint32(length) != valueLen {
-			return nil, errors.New(db.Name() + "Failed to read value" + strconv.Itoa(length) + "for key " + string(key) + " wanted to read " + strconv.Itoa(int(keyLen)) + "bytes")
-		}
-		if err != nil {
-			return nil, errors.New(db.Name() + "Failed to read value: " + "for key " + string(key) + err.Error())
+			return nil, err
 		}
 		db.Insert(string(key), value, false)
 	}
