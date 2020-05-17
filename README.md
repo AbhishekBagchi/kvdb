@@ -2,4 +2,5 @@
 # kvdb
 Key value store in Golang
 Supports storing byte arrays with string keys.
+Supports concurrent write access.
 Has functions for serialization and deserialization to/from a file.
