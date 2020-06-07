@@ -13,11 +13,9 @@ import (
 )
 
 // Database encapsulates the underlying datastore, and other related metadata.
-//FIXME Almost certainly not threadsafe
-/*
- * Restrictions :
- *		- The length of name should fit in 1 byte. So the maximum length is math.MaxUint8
- */
+/*Restrictions :
+- The length of name should fit in 1 byte. So the maximum length is math.MaxUint8
+*/
 type Database struct {
 	valid bool
 	name  string
@@ -106,8 +104,7 @@ func tempDir(dest string) string {
 	return tempdir
 }
 
-//Export writes out the database to a file
-//FIXME For the time being, this overwrites exising files and dumps the entire data into the file
+//Export writes out the database to a file. This overwrites exising files and dumps the entire data into the file
 func (db *Database) Export(filename string) (err error) {
 	//fd, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0755)
 	fd, err := ioutil.TempFile(tempDir(filename), "tmp-")
