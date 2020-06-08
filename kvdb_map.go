@@ -42,7 +42,7 @@ func getShardID(key string) uint32 {
 
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
 	shard := getShardID(key)
-	shardedMap := (*m)[shard]
+	shardedMap := &(*m)[shard]
 	shardedMap.RLock()
 	_, ok := shardedMap.data[key]
 	shardedMap.RUnlock()
@@ -57,7 +57,7 @@ func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool
 
 func getFromShardedMap(m shardedMap, key string) ([]byte, error) {
 	shard := getShardID(key)
-	shardedMap := (*m)[shard]
+	shardedMap := &(*m)[shard]
 	shardedMap.RLock()
 	defer shardedMap.RUnlock()
 	value, ok := (*m)[shard].data[key]
