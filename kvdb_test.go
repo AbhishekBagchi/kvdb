@@ -197,10 +197,7 @@ func TestToRawMap(t *testing.T) {
 }
 
 func BenchmarkSerialization(b *testing.B) {
-	db := getDummyDb("test_db", 1000)
-	db.Insert("key", []byte("kvdb"), false)
-	db.Insert("key2", []byte("key2"), false)
-	db.Insert("key3", []byte(""), false)
+	db := getDummyDb("test_db", 10000)
 	b.ResetTimer()
 	var filename string = "benchmark.kvdb"
 

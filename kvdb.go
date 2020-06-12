@@ -135,15 +135,9 @@ func (db *Database) Export(filename string) (err error) {
 	if length != nameLen {
 		return errors.New("Wrote " + strconv.Itoa(length) + " bytes, expected to write " + strconv.Itoa(nameLen) + " bytes")
 	}
-	var i uint32 = 0
-	for ; i < shards; i++ {
-		for key, value := range (db.data)[i].data {
-			err = writeChunk([]byte(key), bufw)
-			err = writeChunk([]byte(value), bufw)
-			if err != nil {
-				return
-			}
-		}
+	err = db.data.writeShardedMap(bufw)
+	if err != nil {
+		return
 	}
 
 	//Flush the buffered writer

@@ -1,6 +1,7 @@
 package kvdb
 
 import (
+	"bufio"
 	"errors"
 	"hash/fnv"
 	"sync"
@@ -23,25 +24,43 @@ type mapShard struct {
 	numKeys int
 }
 
-type shardedMap = []mapShard
+//type shardedMap = []mapShard
+type shardedMap struct {
+	shards []mapShard
+}
 
 func newShardMap() shardedMap {
-	m := make([]mapShard, shards)
+	m := shardedMap{shards: make([]mapShard, shards)}
 	var i uint32 = 0
 	for ; i < shards; i++ {
-		m[i] = mapShard{data: make(map[string][]byte), numKeys: 0}
+		m.shards[i] = mapShard{data: make(map[string][]byte), numKeys: 0}
 	}
 	return m
 }
 
+func (m shardedMap) writeShardedMap(bufw *bufio.Writer) error {
+	for shard := range m.shards {
+		m.shards[shard].RLock()
+		for key, value := range m.shards[shard].data {
+			err := writeChunk([]byte(key), bufw)
+			err = writeChunk([]byte(value), bufw)
+			if err != nil {
+				return err
+			}
+		}
+		m.shards[shard].RUnlock()
+	}
+	return nil
+}
+
 func getRawMap(m shardedMap) map[string][]byte {
 	return_data := make(map[string][]byte)
-	for shard := range m {
-		m[shard].RLock()
-		for key, value := range m[shard].data {
+	for shard := range m.shards {
+		m.shards[shard].RLock()
+		for key, value := range m.shards[shard].data {
 			return_data[key] = value
 		}
-		m[shard].RUnlock()
+		m.shards[shard].RUnlock()
 	}
 	return return_data
 }
@@ -54,7 +73,7 @@ func getShardID(key string) uint32 {
 
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
 	shard := getShardID(key)
-	shardedMap := &m[shard]
+	shardedMap := &m.shards[shard]
 	shardedMap.RLock()
 	_, ok := shardedMap.data[key]
 	shardedMap.RUnlock()
@@ -70,10 +89,10 @@ func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool
 
 func getFromShardedMap(m shardedMap, key string) ([]byte, error) {
 	shard := getShardID(key)
-	shardedMap := &m[shard]
+	shardedMap := &m.shards[shard]
 	shardedMap.RLock()
 	defer shardedMap.RUnlock()
-	value, ok := m[shard].data[key]
+	value, ok := m.shards[shard].data[key]
 	if ok == false {
 		return nil, errors.New("Key not found in database")
 	}
