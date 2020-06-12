@@ -17,9 +17,8 @@ import (
 - The length of name should fit in 1 byte. So the maximum length is math.MaxUint8
 */
 type Database struct {
-	valid bool
-	name  string
-	data  shardedMap
+	name string
+	data shardedMap
 }
 
 // Name is the getter for the database name
@@ -42,15 +41,16 @@ func New(name string) *Database {
 	if len(name) > math.MaxUint8 {
 		return nil
 	}
-	return &Database{valid: true, name: name, data: newShardMap()}
+	return &Database{name: name, data: newShardMap()}
+}
+
+//Keys returns a slice which contains the list of keys in the database. This is potentially an expensive operation
+func (db *Database) Keys() []string {
+	return getShardedMapKeys(db.data)
 }
 
 // Insert key value pair into the database. Overwrite existing value is parameter is true. No validation on the data is performed.
 func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType {
-	if db.valid == false {
-		err := DatabaseStateInvalid
-		return &err
-	}
 	err := insertIntoShardedMap(db.data, key, value, overwrite)
 	if err != nil {
 		err := DatabaseKeyExists
@@ -61,10 +61,6 @@ func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType 
 
 // Get a value for a key from the map. Return DatabaseKeyNotPresent if not in map
 func (db *Database) Get(key string) ([]byte, *ErrorType) {
-	if db.valid == false {
-		err := DatabaseStateInvalid
-		return nil, &err
-	}
 	value, err := getFromShardedMap(db.data, key)
 	if err != nil {
 		err := DatabaseKeyNotPresent

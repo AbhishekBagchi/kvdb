@@ -16,11 +16,11 @@ FNV seems ideal. Not sure how to pick between FNV1 and FNV1-a
 The SMHasher tool talks about other faster hashing implimentations, but they'll be overkill for now
 */
 
-//FIXME is a struct because it'll eventually contain a RW mutex(?)
 // mapShard is the basic block representing a shard of the overall map
 type mapShard struct {
 	sync.RWMutex
-	data map[string][]byte
+	data    map[string][]byte
+	numKeys int
 }
 
 type shardedMap = []mapShard
@@ -29,9 +29,28 @@ func newShardMap() shardedMap {
 	m := make([]mapShard, shards)
 	var i uint32 = 0
 	for ; i < shards; i++ {
-		m[i] = mapShard{data: make(map[string][]byte)}
+		m[i] = mapShard{data: make(map[string][]byte), numKeys: 0}
 	}
 	return m
+}
+
+func getShardedMapKeys(m shardedMap) []string {
+	totalSize := 0
+	for shard := range m {
+		totalSize += m[shard].numKeys
+	}
+
+	keys := make([]string, totalSize)
+	index := 0
+	for shard := range m {
+		m[shard].RLock()
+		for key := range m[shard].data {
+			keys[index] = key
+			index++
+		}
+		m[shard].RUnlock()
+	}
+	return keys
 }
 
 func getShardID(key string) uint32 {
@@ -52,6 +71,7 @@ func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool
 	shardedMap.Lock()
 	defer shardedMap.Unlock()
 	shardedMap.data[key] = value
+	shardedMap.numKeys++
 	return nil
 }
 
