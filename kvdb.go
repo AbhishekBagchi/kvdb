@@ -141,7 +141,7 @@ func (db *Database) Export(filename string) (err error) {
 	}
 	var i uint32 = 0
 	for ; i < shards; i++ {
-		for key, value := range (*db.data)[i].data {
+		for key, value := range (db.data)[i].data {
 			err = writeChunk([]byte(key), bufw)
 			err = writeChunk([]byte(value), bufw)
 			if err != nil {

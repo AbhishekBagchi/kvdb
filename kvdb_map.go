@@ -23,7 +23,7 @@ type mapShard struct {
 	data map[string][]byte
 }
 
-type shardedMap = *[]mapShard
+type shardedMap = []mapShard
 
 func newShardMap() shardedMap {
 	m := make([]mapShard, shards)
@@ -31,7 +31,7 @@ func newShardMap() shardedMap {
 	for ; i < shards; i++ {
 		m[i] = mapShard{data: make(map[string][]byte)}
 	}
-	return &m
+	return m
 }
 
 func getShardID(key string) uint32 {
@@ -42,7 +42,7 @@ func getShardID(key string) uint32 {
 
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
 	shard := getShardID(key)
-	shardedMap := &(*m)[shard]
+	shardedMap := &m[shard]
 	shardedMap.RLock()
 	_, ok := shardedMap.data[key]
 	shardedMap.RUnlock()
@@ -57,10 +57,10 @@ func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool
 
 func getFromShardedMap(m shardedMap, key string) ([]byte, error) {
 	shard := getShardID(key)
-	shardedMap := &(*m)[shard]
+	shardedMap := &m[shard]
 	shardedMap.RLock()
 	defer shardedMap.RUnlock()
-	value, ok := (*m)[shard].data[key]
+	value, ok := m[shard].data[key]
 	if ok == false {
 		return nil, errors.New("Key not found in database")
 	}
