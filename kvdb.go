@@ -44,9 +44,9 @@ func New(name string) *Database {
 	return &Database{name: name, data: newShardMap()}
 }
 
-//Keys returns a slice which contains the list of keys in the database. This is potentially an expensive operation
-func (db *Database) Keys() []string {
-	return getShardedMapKeys(db.data)
+//ToRawMap returns all the data as a raw map
+func (db *Database) ToRawMap() map[string][]byte {
+	return getRawMap(db.data)
 }
 
 // Insert key value pair into the database. Overwrite existing value is parameter is true. No validation on the data is performed.

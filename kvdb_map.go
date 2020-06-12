@@ -34,23 +34,16 @@ func newShardMap() shardedMap {
 	return m
 }
 
-func getShardedMapKeys(m shardedMap) []string {
-	totalSize := 0
-	for shard := range m {
-		totalSize += m[shard].numKeys
-	}
-
-	keys := make([]string, totalSize)
-	index := 0
+func getRawMap(m shardedMap) map[string][]byte {
+	return_data := make(map[string][]byte)
 	for shard := range m {
 		m[shard].RLock()
-		for key := range m[shard].data {
-			keys[index] = key
-			index++
+		for key, value := range m[shard].data {
+			return_data[key] = value
 		}
 		m[shard].RUnlock()
 	}
-	return keys
+	return return_data
 }
 
 func getShardID(key string) uint32 {

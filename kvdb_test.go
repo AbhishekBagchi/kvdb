@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -22,16 +21,16 @@ func generateRandomBytes(length int) []byte {
 	return b
 }
 
-func getDummyDbKeys(name string, size int) (*Database, []string) {
-	keys := make([]string, size)
+func getDummyDbMap(name string, size int) (*Database, map[string][]byte) {
+	result := make(map[string][]byte, size)
 	db := New(name)
 	for i := 0; i < size; i++ {
 		key := string(generateRandomBytes(50))
-		keys[i] = key
 		value := generateRandomBytes(100)
+		result[key] = value
 		db.Insert(key, value, false)
 	}
-	return db, keys
+	return db, result
 }
 
 func getDummyDb(name string, size int) *Database {
@@ -187,20 +186,13 @@ func TestSerialization(t *testing.T) {
 	}
 }
 
-func TestKeys(t *testing.T) {
-	db, ogKeys := getDummyDbKeys("test_db", 1000)
-	keys := db.Keys()
-	sort.Strings(ogKeys)
-	sort.Strings(keys)
-	if len(keys) != len(ogKeys) {
-		t.Errorf("Inserted %v keys, Keys() returned %v keys.", len(ogKeys), len(keys))
+func TestToRawMap(t *testing.T) {
+	db, ogMap := getDummyDbMap("test_db", 1000)
+	rawMap := db.ToRawMap()
+	eq := reflect.DeepEqual(ogMap, rawMap)
+	if eq == false {
+		t.Error("Data does not match")
 		t.FailNow()
-	}
-	for i, v := range ogKeys {
-		if v != keys[i] {
-			t.Errorf("Expected %v, got %v", v, keys[i])
-			t.FailNow()
-		}
 	}
 }
 
