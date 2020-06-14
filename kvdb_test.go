@@ -73,6 +73,22 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	t.Parallel()
+	db := getDummyDb("test_db", 500)
+	value := []byte("kvdb")
+	err := db.Insert("key", value, false)
+	if err != nil {
+		t.Error("Insert failed")
+		t.FailNow()
+	}
+	db.Delete("key")
+	_, err = db.Get("key")
+	if *err != DatabaseKeyNotPresent {
+		t.Error("Get on deleted key should have returned " + err.String())
+	}
+}
+
 func TestInsert(t *testing.T) {
 	t.Parallel()
 	db := New("test_db")

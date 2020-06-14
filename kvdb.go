@@ -49,6 +49,12 @@ func (db *Database) ToRawMap() map[string][]byte {
 	return getRawMap(db.data)
 }
 
+//Delete removes a key from the database.
+//It behaves the same way as the in build delete wherein it doesn't return anything and does nothing if the key doesn't exist
+func (db *Database) Delete(key string) {
+	deleteFromShardedMap(db.data, key)
+}
+
 // Insert key value pair into the database. Overwrite existing value is parameter is true. No validation on the data is performed.
 func (db *Database) Insert(key string, value []byte, overwrite bool) *ErrorType {
 	err := insertIntoShardedMap(db.data, key, value, overwrite)

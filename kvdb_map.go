@@ -71,6 +71,14 @@ func getShardID(key string) uint32 {
 	return (hash.Sum32() % shards)
 }
 
+func deleteFromShardedMap(m shardedMap, key string) {
+	shard := getShardID(key)
+	shardedMap := &m.shards[shard]
+	shardedMap.Lock()
+	defer shardedMap.Unlock()
+	delete(shardedMap.data, key)
+}
+
 func insertIntoShardedMap(m shardedMap, key string, value []byte, overwrite bool) error {
 	shard := getShardID(key)
 	shardedMap := &m.shards[shard]
